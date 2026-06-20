@@ -5,6 +5,8 @@ jobs:
     # Only run on PRs if the source branch is on someone else's repo
     if: ${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,8 +22,23 @@ jobs:
           cache: 'gradle'
       - name: Build
         run: ./gradlew build
+      - name: Determine version
+        id: version
+        run: |
+          jar=$(ls bukkit/build/libs/Bolt-*.jar | head -n1)
+          version=$(basename "$jar" .jar | sed 's/^Bolt-//')
+          echo "Built version $version ($jar)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: Bolt
           path: "bukkit/build/libs/Bolt-*.jar"
+      - name: Create release
+        if: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Bolt ${{ steps.version.outputs.version }}
+          files: bukkit/build/libs/Bolt-*.jar
+          generate_release_notes: true

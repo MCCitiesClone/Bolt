@@ -12,7 +12,7 @@ subprojects {
     plugins.apply("com.gradleup.shadow")
 
     group = "${project.property("group")}"
-    version = "${project.property("version")}.${commitsSinceLastTag()}"
+    version = "${project.property("version")}.${commitCount()}"
 
     java {
         toolchain {
@@ -62,13 +62,12 @@ subprojects {
     }
 }
 
-fun commitsSinceLastTag(): String {
+// Total number of commits, used as a monotonically increasing patch version that
+// bumps with every push. Deliberately tag-independent so the releases this repo's
+// CI publishes (which create tags) don't reset the count.
+fun commitCount(): String {
     val result = project.providers.exec {
-        commandLine("git", "describe", "--tags", "--always")
+        commandLine("git", "rev-list", "--count", "HEAD")
     }
-    val tagDescription = result.standardOutput.asText.get()
-    if (tagDescription.indexOf('-') < 0) {
-        return "0"
-    }
-    return tagDescription.split('-')[1]
+    return result.standardOutput.asText.get().trim().ifEmpty { "0" }
 }
